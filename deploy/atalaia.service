@@ -1,0 +1,28 @@
+[Unit]
+Description=Atalaia - monitoramento de seguranca
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/atalaia
+EnvironmentFile=-/etc/atalaia/env
+ExecStart=/usr/bin/python3 -m atalaia -c /etc/atalaia/config.json run
+Restart=always
+RestartSec=5
+
+# limites que garantem que o Atalaia nunca pese na VPS do cliente
+MemoryMax=96M
+CPUQuota=20%
+Nice=10
+IOSchedulingClass=idle
+
+# endurecimento: acesso somente leitura ao sistema, escrita apenas na pasta de dados
+ProtectSystem=strict
+ReadWritePaths=/var/lib/atalaia
+ProtectHome=read-only
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

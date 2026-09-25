@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "atalaia"
+version = "0.1.0"
+description = "Monitoramento de seguranca leve para VPS e pequenas empresas"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+atalaia = "atalaia.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["atalaia*"]
+
+[tool.setuptools.package-data]
+atalaia = ["rules/*.json"]

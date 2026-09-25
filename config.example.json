@@ -1,0 +1,27 @@
+{
+  "host_name": "minha-vps",
+  "data_dir": "/var/lib/atalaia",
+  "learning_hours": 24,
+  "whitelist_ips": ["127.0.0.1", "::1"],
+  "sources": [
+    {"type": "auth", "path": "/var/log/auth.log"},
+    {"type": "http", "path": "/var/log/nginx/access.log"},
+    {"type": "http", "path": "/var/log/traefik/access.log"},
+    {"type": "firewall", "path": "/var/log/ufw.log"}
+  ],
+  "rules_disabled": [],
+  "rules_override": {},
+  "ai": {
+    "enabled": false,
+    "model": "claude-haiku-4-5-20251001",
+    "report_hour": 7,
+    "explain_critical": true,
+    "company_name": ""
+  },
+  "notify": {
+    "min_severity": "alta",
+    "telegram": {"bot_token": "", "chat_id": ""},
+    "evolution": {"url": "", "instance": "", "apikey": "", "number": ""},
+    "webhook": {"url": ""}
+  }
+}

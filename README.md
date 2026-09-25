@@ -159,10 +159,10 @@ Saída real:
 ```
 Eventos: 10 normais, 5 suspeitos, 1 criticos
 
-24/09 03:14:40  CRITICA  SSH-004  x1    45.155.205.10   Login SSH com sucesso apos forca bruta
-    Login SSH aceito (password) para root vindo de 45.155.205.10
-24/09 03:12:14  ALTA     SSH-001  x8    45.155.205.10   Forca bruta SSH
-    Falha de login SSH para root vindo de 45.155.205.10
+24/09 03:14:40  CRITICA  SSH-004  x1    203.0.113.10   Login SSH com sucesso apos forca bruta
+    Login SSH aceito (password) para root vindo de 203.0.113.10
+24/09 03:12:14  ALTA     SSH-001  x8    203.0.113.10   Forca bruta SSH
+    Falha de login SSH para root vindo de 203.0.113.10
 24/09 03:15:02  ALTA     SYS-001  x1    -               Novo usuario criado no sistema
     Novo usuario criado no sistema: suporte
 24/09 03:15:05  ALTA     SYS-002  x1    -               Usuario adicionado a grupo privilegiado
@@ -207,10 +207,10 @@ Exemplo de alerta recebido:
 [ATALAIA] ALERTA CRITICA
 Servidor: vps-cliente
 Regra: SSH-004 Login SSH com sucesso apos forca bruta
-IP de origem: 45.155.205.10
+IP de origem: 203.0.113.10
 Usuario: root
 MITRE ATT&CK: T1110, T1078
-Detalhe: Login SSH aceito (password) para root vindo de 45.155.205.10
+Detalhe: Login SSH aceito (password) para root vindo de 203.0.113.10
 O que fazer: Possivel invasao. Encerrar sessoes ativas, trocar senhas, revisar authorized_keys, crontab e usuarios criados, e bloquear o IP.
 ```
 
@@ -378,6 +378,12 @@ Desenvolvido por **Odivan Souza**, analista de automação e cibersegurança.
 
 [LinkedIn](https://www.linkedin.com/in/odivan-souza/) | [GitHub](https://github.com/Odiveighar) | [TryHackMe](https://tryhackme.com/p/Odiveighar)
 
+## Contribuindo
+
+Contribuições são bem-vindas, principalmente regras novas, parsers para outros formatos de log e relatos de falso positivo. Leia o [`CONTRIBUTING.md`](CONTRIBUTING.md) antes de abrir um pull request.
+
+Encontrou uma vulnerabilidade no próprio Atalaia? **Não abra issue pública.** Siga o [`SECURITY.md`](SECURITY.md).
+
 ## Licença
 
-Uso restrito. Todos os direitos reservados ao autor enquanto o produto está em fase de validação.
+Distribuído sob a licença Apache 2.0. Veja o arquivo [`LICENSE`](LICENSE).

