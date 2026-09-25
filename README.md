@@ -1,15 +1,24 @@
 # Atalaia
 
-**Monitoramento de segurança leve para VPS e servidores de pequenas e médias empresas.**
+[![testes](https://github.com/Odiveighar/atalaia/actions/workflows/testes.yml/badge.svg)](https://github.com/Odiveighar/atalaia/actions/workflows/testes.yml)
+[![licença](https://img.shields.io/badge/licen%C3%A7a-Apache%202.0-blue)](LICENSE)
+[![python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
+[![dependências](https://img.shields.io/badge/depend%C3%AAncias-zero-brightgreen)](pyproject.toml)
 
-O Atalaia lê os logs do servidor em tempo real, classifica cada evento como `normal`, `suspeito` ou `critico`, avisa no WhatsApp ou Telegram quando algo grave acontece e entrega todo dia um relatório escrito por IA, em português, que qualquer dono de empresa entende.
+**Monitoramento de segurança leve e open source para VPS e servidores de pequenas empresas.**
 
-Ele nasceu da ideia de juntar o melhor de duas ferramentas consagradas em algo que caiba em uma VPS de 1 GB:
+O Atalaia lê os logs do seu servidor em tempo real, classifica cada evento como `normal`, `suspeito` ou `critico` e avisa quando alguém tenta invadir. Todo dia ele entrega um relatório em português, que pode ser escrito por IA, explicando o que aconteceu e o que fazer.
 
-1. Do **Wazuh**: regras de host, monitoramento de integridade de arquivos e mapeamento para o MITRE ATT&CK.
-2. Do **Security Onion**: visão de rede e caça a ameaças.
+Roda com cerca de 30 MB de RAM, não abre nenhuma porta e não depende de nada além do Python.
 
-Sem Elasticsearch, sem Java, sem banco externo. Só Python 3.9 ou superior.
+```bash
+git clone https://github.com/Odiveighar/atalaia.git && cd atalaia
+python3 -m atalaia analyze auth:samples/auth.log http:samples/access.log --report
+```
+
+O comando acima analisa uma invasão simulada incluída no repositório. Não instala nada e leva menos de um segundo.
+
+> **Status:** versão 0.1, em validação aberta. Está funcionando e testado, mas ainda é jovem. Instale, quebre, reclame: todo feedback molda as próximas versões.
 
 ## Sumário
 
@@ -17,31 +26,34 @@ Sem Elasticsearch, sem Java, sem banco externo. Só Python 3.9 ou superior.
 2. [Como funciona](#como-funciona)
 3. [O que ele detecta](#o-que-ele-detecta)
 4. [Instalação](#instalação)
-5. [Primeiros passos](#primeiros-passos)
-6. [Diagnóstico offline](#diagnóstico-offline)
+5. [Uso](#uso)
+6. [Análise offline](#análise-offline)
 7. [Agente de IA](#agente-de-ia)
 8. [Notificações](#notificações)
 9. [Configuração](#configuração)
-10. [Criando regras](#criando-regras)
+10. [Escrevendo regras](#escrevendo-regras)
 11. [Desempenho](#desempenho)
 12. [Segurança do próprio agente](#segurança-do-próprio-agente)
-13. [Desenvolvimento](#desenvolvimento)
-14. [Perguntas frequentes](#perguntas-frequentes)
-15. [Limitações e roadmap](#limitações-e-roadmap)
+13. [Perguntas frequentes](#perguntas-frequentes)
+14. [Roadmap](#roadmap)
+15. [Como ajudar](#como-ajudar)
 
 ## Por que o Atalaia existe
 
-Pequenas empresas têm servidores expostos na internet recebendo centenas de tentativas de invasão por dia, e ninguém olhando. As ferramentas profissionais existem e são gratuitas, mas o custo real não é a licença:
+Todo servidor exposto na internet recebe centenas de tentativas de invasão por dia. Empresas grandes têm SIEM e equipe de segurança olhando. Pequenas empresas, desenvolvedores e agências que mantêm uma VPS geralmente não têm nada.
+
+As ferramentas abertas de referência existem, mas foram feitas para outro cenário:
 
 | | Wazuh | Security Onion | Atalaia |
 |---|---|---|---|
 | RAM recomendada | 4 GB ou mais | 12 GB ou mais | 30 MB |
-| Tempo de instalação | Horas | Máquina dedicada | 1 comando |
-| Dependências | Várias | Distribuição inteira | Só Python |
-| Precisa de analista para ler | Sim | Sim | Não, a IA escreve o relatório |
-| Alerta no WhatsApp | Por integração | Por integração | Nativo |
+| Instalação | Horas | Máquina dedicada | 1 comando |
+| Dependências | Várias | Distribuição inteira | Nenhuma além do Python |
+| Relatório legível por quem não é da área | Não | Não | Sim |
 
-O Atalaia não substitui essas ferramentas em ambiente corporativo. Ele atende quem hoje não tem nada.
+O Atalaia pega as ideias centrais das duas, as regras de host, a integridade de arquivos e o mapeamento MITRE ATT&CK do Wazuh e a visão de rede do Security Onion, e entrega em algo que cabe em uma VPS de 1 GB.
+
+Ele **não substitui** essas ferramentas em ambiente corporativo. Ele existe para quem hoje não tem nada.
 
 ## Como funciona
 
@@ -55,16 +67,16 @@ flowchart LR
     P --> E[Motor de regras]
     E -->|normal| S[(Contadores por hora)]
     E -->|suspeito ou critico| DB[(SQLite)]
-    E -->|alta ou critica| N[WhatsApp / Telegram / Webhook]
-    DB --> R[Agente de IA]
-    R -->|todo dia| N
+    E -->|alta ou critica| N[Notificações]
+    DB --> R[Relatório diário]
+    R --> N
 ```
 
-1. **Coleta:** acompanha os arquivos de log como um `tail -f`, guardando a posição no banco. Sobrevive a reinício e a rotação de logs.
+1. **Coleta:** acompanha os arquivos de log como um `tail -f`, guardando a posição. Sobrevive a reinício e a rotação de logs.
 2. **Normalização:** cada linha vira um evento padronizado com IP, usuário, caminho, status e demais campos.
-3. **Classificação:** o evento passa por 23 regras. Se nenhuma dispara, é `normal` e vira só um contador. Se dispara, é `suspeito` ou `critico` e fica gravado.
-4. **Alerta:** severidade alta ou crítica gera notificação imediata, com limite anti enxurrada.
-5. **Relatório:** uma vez por dia, o agente de IA resume o período e sugere ações.
+3. **Classificação:** o evento passa pelas regras. Se nenhuma dispara, é `normal` e vira só um contador por hora, sem ocupar disco. Se dispara, é `suspeito` ou `critico` e fica gravado.
+4. **Alerta:** severidade alta ou crítica gera notificação imediata, com limite contra enxurrada.
+5. **Relatório:** uma vez por dia, um resumo com nível de risco e recomendações.
 
 ## O que ele detecta
 
@@ -76,14 +88,14 @@ flowchart LR
 | Rede | Varredura de portas via logs do firewall, nova porta aberta para a internet |
 | Integridade | Alteração em `authorized_keys`, `passwd`, `shadow`, `sudoers`, cron, serviços systemd, `sshd_config` e `ld.so.preload` |
 
-Todas as regras têm técnica do MITRE ATT&CK e uma recomendação do que fazer. Liste com `atalaia rules`.
+São 23 regras, todas com técnica do MITRE ATT&CK e uma recomendação do que fazer. Liste com `atalaia rules` ou leia em [`atalaia/rules/default.json`](atalaia/rules/default.json).
 
 ### Como ele reduz falso positivo
 
 1. **Aprendizado:** nas primeiras 24 horas, regras do tipo "nunca visto" apenas aprendem o que é normal no servidor.
 2. **Agrupamento:** um scanner que dispara 500 vezes gera 1 alerta com contador 500.
-3. **Limite de mensagens:** no máximo 10 notificações a cada 5 minutos por servidor.
-4. **Ajuste sem código:** whitelist de IPs e faixas, desligar regras e mudar limites direto no `config.json`.
+3. **Limite de mensagens:** no máximo 10 notificações a cada 5 minutos.
+4. **Ajuste sem código:** whitelist de IPs e faixas, desligar regras e mudar limites direto na configuração.
 
 ## Instalação
 
@@ -95,18 +107,13 @@ cd atalaia
 sudo bash deploy/install.sh
 ```
 
-O instalador:
-
-1. Copia o agente para `/opt/atalaia`.
-2. Cria a configuração em `/etc/atalaia/config.json`.
-3. Registra o serviço no systemd com limite de 96 MB de RAM e 20% de CPU.
-4. Inicia o monitoramento e roda `atalaia check`.
+O instalador copia o agente para `/opt/atalaia`, cria a configuração em `/etc/atalaia/config.json`, registra o serviço no systemd com limite de 96 MB de RAM e 20% de CPU, inicia o monitoramento e roda uma verificação.
 
 Para remover: `sudo bash deploy/uninstall.sh`. Configuração e dados são mantidos.
 
 ### Traefik em Docker ou Docker Swarm
 
-O Traefik manda o access log para o stdout por padrão. Para o Atalaia ler, grave em arquivo:
+O Traefik manda o access log para o stdout por padrão. Grave em arquivo para o Atalaia ler:
 
 ```yaml
 command:
@@ -118,13 +125,13 @@ volumes:
 
 ### Sistemas sem auth.log
 
-Algumas distribuições recentes guardam os logs só no journald. Instale o rsyslog:
+Algumas distribuições recentes guardam logs só no journald. Instale o rsyslog:
 
 ```bash
 sudo apt install -y rsyslog
 ```
 
-## Primeiros passos
+## Uso
 
 ```bash
 atalaia check          # valida configuracao, fontes de log e chave da IA
@@ -138,9 +145,9 @@ atalaia test-notify    # testa os canais de notificacao
 journalctl -u atalaia -f
 ```
 
-## Diagnóstico offline
+## Análise offline
 
-Analisa logs de qualquer servidor **sem instalar nada nele**. Ideal para avaliar um ambiente antes de uma instalação ou para investigar um incidente que já aconteceu.
+Analisa arquivos de log de qualquer servidor **sem instalar nada nele**. Útil para investigar um incidente que já aconteceu ou avaliar um servidor antes de instalar o agente.
 
 ```bash
 python3 -m atalaia analyze auth:auth.log http:access.log firewall:ufw.log --report
@@ -148,20 +155,14 @@ python3 -m atalaia analyze auth:auth.log http:access.log firewall:ufw.log --repo
 
 Formato dos argumentos: `tipo:caminho`, com os tipos `auth`, `http` e `firewall`.
 
-O repositório traz logs de exemplo que simulam uma invasão completa. Teste agora:
-
-```bash
-python3 -m atalaia analyze auth:samples/auth.log
-```
-
-Saída real:
+Saída real com os logs de exemplo do repositório:
 
 ```
 Eventos: 10 normais, 5 suspeitos, 1 criticos
 
-24/09 03:14:40  CRITICA  SSH-004  x1    203.0.113.10   Login SSH com sucesso apos forca bruta
+24/09 03:14:40  CRITICA  SSH-004  x1    203.0.113.10    Login SSH com sucesso apos forca bruta
     Login SSH aceito (password) para root vindo de 203.0.113.10
-24/09 03:12:14  ALTA     SSH-001  x8    203.0.113.10   Forca bruta SSH
+24/09 03:12:14  ALTA     SSH-001  x8    203.0.113.10    Forca bruta SSH
     Falha de login SSH para root vindo de 203.0.113.10
 24/09 03:15:02  ALTA     SYS-001  x1    -               Novo usuario criado no sistema
     Novo usuario criado no sistema: suporte
@@ -169,31 +170,27 @@ Eventos: 10 normais, 5 suspeitos, 1 criticos
     Usuario suporte adicionado ao grupo sudo
 ```
 
-O atacante tentou senhas, entrou como root, criou um usuário de persistência e deu sudo para ele. O Atalaia reconstruiu a cadeia inteira.
+O atacante tentou senhas, entrou como root, criou um usuário para manter acesso e deu sudo para ele. O Atalaia reconstruiu a cadeia inteira.
 
 ## Agente de IA
 
-Com a IA ativada, o Atalaia:
+Opcional. Com a IA ativada, o Atalaia:
 
-1. **Escreve o relatório diário** com resumo executivo, nível de risco (baixo, moderado, alto ou crítico), incidentes em ordem de gravidade, prováveis falsos positivos com o ajuste sugerido e até 5 recomendações com o comando exato.
+1. **Escreve o relatório diário** com resumo executivo, nível de risco, incidentes em ordem de gravidade, prováveis falsos positivos com o ajuste sugerido e até 5 recomendações com o comando exato.
 2. **Explica alertas críticos na hora**, em até 4 linhas, junto com a notificação.
 
-Privacidade: a IA **nunca recebe logs brutos**, apenas o resumo agregado do período. Isso protege os dados e mantém o custo baixo.
+A IA **nunca recebe logs brutos**, apenas o resumo agregado do período. Sem IA, o relatório continua sendo gerado em formato objetivo: o Atalaia nunca depende de serviço externo para funcionar.
 
-Sem IA, o relatório continua sendo gerado em formato objetivo. O Atalaia nunca depende de serviço externo para proteger o servidor.
-
-Para ativar:
+Para ativar, coloque sua chave da API da Anthropic em `/etc/atalaia/env`, defina `"enabled": true` na seção `ai` do `config.json` e reinicie:
 
 ```bash
-sudo nano /etc/atalaia/env          # ANTHROPIC_API_KEY=sua_chave
-sudo nano /etc/atalaia/config.json  # "ai": {"enabled": true}
 sudo systemctl restart atalaia
 atalaia check
 ```
 
 ## Notificações
 
-Configure na seção `notify`. Dá para usar vários canais ao mesmo tempo.
+Configure na seção `notify`. Todos são opcionais e podem ser usados juntos.
 
 | Canal | Campos |
 |---|---|
@@ -201,11 +198,13 @@ Configure na seção `notify`. Dá para usar vários canais ao mesmo tempo.
 | WhatsApp via Evolution API | `url`, `instance`, `apikey`, `number` |
 | Webhook | `url`, recebe JSON com o alerta completo |
 
-Exemplo de alerta recebido:
+O webhook permite integrar com qualquer sistema: Discord, Slack, ntfy, seu próprio painel.
+
+Exemplo de alerta:
 
 ```
 [ATALAIA] ALERTA CRITICA
-Servidor: vps-cliente
+Servidor: minha-vps
 Regra: SSH-004 Login SSH com sucesso apos forca bruta
 IP de origem: 203.0.113.10
 Usuario: root
@@ -216,7 +215,7 @@ O que fazer: Possivel invasao. Encerrar sessoes ativas, trocar senhas, revisar a
 
 ## Configuração
 
-Arquivo: `/etc/atalaia/config.json`. Tudo que não for informado usa o valor padrão.
+Arquivo: `/etc/atalaia/config.json`. Tudo que não for informado usa o valor padrão. Veja o exemplo completo em [`config.example.json`](config.example.json).
 
 | Campo | Padrão | Descrição |
 |---|---|---|
@@ -237,11 +236,10 @@ Arquivo: `/etc/atalaia/config.json`. Tudo que não for informado usa o valor pad
 | `ai.model` | `claude-haiku-4-5-20251001` | Modelo usado |
 | `ai.report_hour` | `7` | Hora do relatório diário |
 | `ai.explain_critical` | `true` | Explicação por IA nos alertas críticos |
-| `ai.company_name` | vazio | Nome da empresa no relatório |
 | `notify.min_severity` | `alta` | Severidade mínima para notificar |
 | `notify.max_per_5min` | `10` | Limite de mensagens |
 
-## Criando regras
+## Escrevendo regras
 
 Crie um arquivo JSON e aponte o caminho em `rules_extra`.
 
@@ -253,7 +251,7 @@ Crie um arquivo JSON e aponte o caminho em `rules_extra`.
 | `new_value` | A combinação dos campos `keys` aparece pela primeira vez |
 | `sequence` | A regra indicada em `requires.rule` já disparou para a mesma chave |
 
-Condições em `match` e `exclude` são expressões regulares sem diferenciar maiúsculas. O campo `etype` aceita um tipo ou lista de tipos.
+As condições em `match` e `exclude` são expressões regulares sem diferenciar maiúsculas. O campo `etype` aceita um tipo ou uma lista.
 
 Tipos de evento: `ssh_fail`, `ssh_success`, `ssh_invalid_user`, `sudo`, `sudo_fail`, `user_created`, `group_add`, `http`, `fw_block`, `fim_change`, `net_listen`.
 
@@ -274,6 +272,8 @@ Exemplo, alertar todo acesso bem sucedido ao painel administrativo:
 ]
 ```
 
+Criou uma regra útil? Mande um pull request, ela pode entrar no conjunto padrão.
+
 ## Desempenho
 
 Medido com 200 mil linhas de log HTTP, em um único núcleo:
@@ -289,15 +289,74 @@ O banco fica pequeno porque eventos normais não são gravados um a um, apenas c
 
 ## Segurança do próprio agente
 
-Uma ferramenta de segurança não pode virar porta de entrada. Por isso o serviço roda com:
+Uma ferramenta de segurança não pode virar porta de entrada:
 
-1. `ProtectSystem=strict`: todo o sistema é somente leitura para o agente, exceto `/var/lib/atalaia`.
-2. `NoNewPrivileges` e `PrivateTmp`.
-3. Nenhuma porta aberta: o Atalaia não escuta conexões, só envia.
+1. **Nenhuma porta aberta:** o agente não escuta conexões, só envia.
+2. **Sistema somente leitura:** o serviço roda com `ProtectSystem=strict` e só escreve em `/var/lib/atalaia`.
+3. `NoNewPrivileges` e `PrivateTmp` ativos.
 4. Configuração e chave da API com permissão `600`.
-5. Zero dependências de terceiros, o que elimina risco de cadeia de suprimentos.
+5. **Zero dependências de terceiros**, o que elimina o risco de cadeia de suprimentos.
 
-## Desenvolvimento
+Encontrou uma falha? Veja o [`SECURITY.md`](SECURITY.md).
+
+## Perguntas frequentes
+
+**Preciso parar algum serviço para instalar?**
+Não. O Atalaia só lê logs e arquivos. Nada no servidor é alterado.
+
+**Ele bloqueia ataques?**
+Nesta versão ele detecta e avisa. Bloqueio automático está no roadmap. Até lá, combine com fail2ban ou CrowdSec, eles se complementam bem.
+
+**E se a VPS tiver pouca memória?**
+O systemd limita o Atalaia a 96 MB. Em uso normal ele fica em torno de 30 MB.
+
+**Os alertas vão me inundar?**
+Não. Alertas repetidos são agrupados e existe limite de mensagens por janela de tempo.
+
+**Funciona sem internet?**
+Sim. Detecção, banco e relatório sem IA funcionam offline. Só notificações e IA precisam de rede.
+
+**Por que as regras são públicas? Isso não ajuda o atacante?**
+Regras de detecção de projetos como Sigma e Wazuh também são públicas. Detecção bem feita funciona mesmo quando o atacante sabe que ela existe, e regras abertas podem ser revisadas e melhoradas por qualquer pessoa.
+
+**É gratuito?**
+Sim, sob a licença Apache 2.0, inclusive para uso comercial.
+
+## Roadmap
+
+Limitações conhecidas desta versão:
+
+1. A visão de rede usa logs do firewall e portas abertas. Não inspeciona pacotes como o Suricata.
+2. Linhas escritas no arquivo antigo no exato momento da rotação podem ser perdidas.
+3. Ainda não lê o journald nem logs de containers diretamente.
+
+Próximos passos:
+
+| Versão | Foco |
+|---|---|
+| 0.2 | Leitura de journald e de logs de containers Docker, mais parsers |
+| 0.3 | Bloqueio automático de IP com expiração, listas de reputação |
+| 0.4 | Integração opcional com Suricata, verificação de pacotes vulneráveis, nota de segurança por servidor |
+
+Quer influenciar a ordem? Abra uma issue contando o que faz mais falta no seu servidor.
+
+## Como ajudar
+
+A forma mais valiosa de contribuir agora é **usar e contar o que aconteceu**:
+
+1. Instale no seu servidor e abra uma issue com o que o Atalaia encontrou no primeiro dia (troque IPs e nomes reais).
+2. Relate falsos positivos, eles são o principal ajuste desta fase.
+3. Proponha regras e parsers novos.
+4. Deixe uma estrela se o projeto for útil, ajuda outras pessoas a encontrarem.
+
+Antes de mandar código, leia o [`CONTRIBUTING.md`](CONTRIBUTING.md). Para rodar os testes:
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 scripts/checar_estilo.py
+```
+
+### Estrutura do código
 
 ```
 atalaia/
@@ -311,78 +370,16 @@ atalaia/
   ai.py           agente de IA
   notify.py       Telegram, WhatsApp e webhook
 deploy/           instalador, desinstalador e servico systemd
-samples/          logs de exemplo
+samples/          logs de exemplo com invasao simulada
 scripts/          checagens de estilo
 tests/            testes automatizados
-docs/             plano de produto e roadmap
 ```
-
-Rodar localmente sem instalar:
-
-```bash
-python3 -m unittest discover -s tests -v
-python3 scripts/checar_estilo.py
-python3 -m atalaia analyze auth:samples/auth.log http:samples/access.log firewall:samples/ufw.log --report
-```
-
-O GitHub Actions roda os testes em Python 3.9, 3.10 e 3.12 a cada push.
-
-Padrões do código:
-
-1. Somente biblioteca padrão do Python.
-2. Sem travessão e sem emoji em código, documentação e mensagens. O CI reprova se encontrar.
-3. Toda regra nova precisa de técnica MITRE, recomendação e um teste.
-
-## Perguntas frequentes
-
-**Preciso parar algum serviço para instalar?**
-Não. O Atalaia só lê logs e arquivos. Nada no servidor é alterado.
-
-**Ele bloqueia ataques?**
-Nesta versão ele detecta e avisa. O bloqueio automático de IP está previsto para a v0.3. Até lá, combine com fail2ban ou CrowdSec.
-
-**E se a VPS tiver pouca memória?**
-O systemd limita o Atalaia a 96 MB. Em uso normal ele fica em torno de 30 MB.
-
-**Os alertas vão me inundar?**
-Não. Alertas repetidos são agrupados e existe limite de mensagens por janela de tempo.
-
-**Funciona sem internet?**
-Sim. Detecção, banco e relatório sem IA funcionam offline. Só notificações e IA precisam de rede.
-
-**Onde ficam os relatórios?**
-Em `/var/lib/atalaia/relatorios/`, um arquivo por dia, além do envio pelos canais configurados.
-
-## Limitações e roadmap
-
-Limitações conhecidas desta versão:
-
-1. A visão de rede usa logs do firewall e portas abertas. Não inspeciona pacotes como o Suricata.
-2. Linhas escritas no arquivo antigo no exato momento da rotação podem ser perdidas.
-3. Ainda não lê o journald nem logs de containers diretamente.
-4. Uma instalação monitora um servidor.
-
-Próximas versões:
-
-| Versão | Foco |
-|---|---|
-| v0.2 | Painel central com vários clientes e servidores, relatório mensal em PDF, alerta de agente offline |
-| v0.3 | Bloqueio automático de IP, listas de reputação, leitura de journald e Docker |
-| v0.4 | Integração opcional com Suricata, verificação de pacotes vulneráveis, nota de segurança por servidor, IA conversacional pelo WhatsApp |
-
-Detalhes em [`docs/PLANO_MVP.md`](docs/PLANO_MVP.md).
 
 ## Autor
 
-Desenvolvido por **Odivan Souza**, analista de automação e cibersegurança.
+Criado por **Odivan Souza**, desenvolvedor de automação e analista de cibersegurança.
 
 [LinkedIn](https://www.linkedin.com/in/odivan-souza/) | [GitHub](https://github.com/Odiveighar) | [TryHackMe](https://tryhackme.com/p/Odiveighar)
-
-## Contribuindo
-
-Contribuições são bem-vindas, principalmente regras novas, parsers para outros formatos de log e relatos de falso positivo. Leia o [`CONTRIBUTING.md`](CONTRIBUTING.md) antes de abrir um pull request.
-
-Encontrou uma vulnerabilidade no próprio Atalaia? **Não abra issue pública.** Siga o [`SECURITY.md`](SECURITY.md).
 
 ## Licença
 
